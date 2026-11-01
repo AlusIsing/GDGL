@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GDGL/GDGL.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GDGL.Tests/GDGL.Tests.csproj" />
+  </Folder>
+</Solution>
