@@ -12,6 +12,7 @@ namespace GDGL.Tests.Language;
 
 using GDGL.Language;
 
+using Superpower.Model;
 using Xunit.Abstractions;
 
 public class LexerTests
@@ -26,20 +27,22 @@ public class LexerTests
     [Fact]
     public void OneLineSTMTTest()
     {
-        string stmt = "func(a, b, c)";
-        Lexer lexer = new Lexer(stmt);
+        string source = "func(a, b, c)";
+        Lexer lexer = new Lexer();
 
-        IReadOnlyList<Token> tokens = lexer.ScanTokens();
+        TextSpan input = new TextSpan(source);
+
+        Result<TokenType>[] tokens = lexer.ScanTokens(input).ToArray();
         
         string tokens_str = "";
 
-        foreach (Token token in tokens)
+        foreach (Result<TokenType> token in tokens)
         {
             string one_line_str = String.Format("{0}: {1} line {2} column {3}\n",
-                token.Type.ToString(),
-                token.Lexeme,
-                token.Line,
-                token.Column
+                token.Value,
+                token.Value,
+                token.Value,
+                token.Value
             );
 
             tokens_str = tokens_str + one_line_str;

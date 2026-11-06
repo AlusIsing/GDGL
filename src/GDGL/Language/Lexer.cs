@@ -1,287 +1,266 @@
 namespace GDGL.Language;
 
-using System.Globalization;
+using System;
+using System.Collections.Generic;
 
-public sealed class Lexer
+using Superpower;
+using Superpower.Model;
+
+public sealed class Lexer : Tokenizer<TokenType>
 {
-    private readonly string _source;
-
-    private readonly List<Token> _tokens = [];
-
-    private int _start;
-    private int _current = 0;
-
-    private int _line = 1; // line amount of source
-    private int _column = 1; // char amount of current line
-
-    private int _startLine = 1;
-    private int _startColumn = 1;
-
-    public Lexer(string source)
+    public IEnumerable<Result<TokenType>> ScanTokens(TextSpan input)
     {
-        ArgumentNullException.ThrowIfNull(source);
-
-        _source = source;
+        return Tokenize(input);
     }
-
-    public IReadOnlyList<Token> ScanTokens()
+    protected override IEnumerable<Result<TokenType>> Tokenize(TextSpan input)
     {
-        while (!IsAtEnd())
+        Result<char> next = input.ConsumeChar();
+
+        while (next.HasValue)
         {
-            _start = _current;
-            _startLine = _line;
-            _startColumn = _column;
+            TextSpan start = next.Location;
+            TextSpan end = next.Remainder;
 
-            ScanToken();
-        }
+            switch (next.Value)
+            {
+                case '(':
+                    yield return Result.Value(
+                        TokenType.LeftParen,
+                        start,
+                        end
+                    );
+                    break;
 
-        _tokens.Add(new Token(
-            TokenType.EOF,
-            string.Empty,
-            null,
-            _line,
-            _column
-        ));
+                case ')':
+                    yield return Result.Value(
+                        TokenType.RightParen,
+                        start,
+                        end
+                    );
+                    break;
 
-        return _tokens;
-    }
+                case ',':
+                    yield return Result.Value(
+                        TokenType.Comma,
+                        start,
+                        end
+                    );
+                    break;
 
-    private bool IsAtEnd()
-    {
-        return _current >= _source.Length;
-    }
+                case '"': // string scan
+                    Result<TokenType> result = ScanString(end);
 
-    private char GetNext()
-    {
-        char c = _source[_current++];
-        
-        _column++;
+                    yield return result;
 
-        return c;
-    }
+                    if (!result.HasValue)
+                        yield break;
 
-    private char CheckCurrent()
-    {
-        if (IsAtEnd())
-            return '\0';
+                    end = result.Remainder;
+                    break;
 
-        return _source[_current];
-    }
 
-    private char CheckNext()
-    {
-        if (_current + 1 >= _source.Length)
-            return '\0';
+                default:
+                    if (char.IsDigit(next.Value)) // integer or float scan
+                    {
+                        var (numberEnd, isFloat) = ScanNumber(end);
 
-        return _source[_current + 1];
-    }
+                        yield return Result.Value(
+                            isFloat ? TokenType.Float : TokenType.Integer,
+                            start,
+                            numberEnd
+                        );
 
-    private bool Match(char expected)
-    {
-        if (IsAtEnd() || _source[_current] != expected)
-            return false;
+                        end = numberEnd;
+                    }
+                    else if (IsIdentifierStart(next.Value)) // identifier scan
+                    {
+                        while (true)
+                        {
+                            var c = end.ConsumeChar();
 
-        GetNext();
+                            if (!c.HasValue || !IsIdentifierPart(c.Value))
+                                break;
 
-        return true;
-    }
+                            end = c.Remainder;
+                        }
 
-    private void AddToken(TokenType type, object? literal = null)
-    {
-        string lexeme = _source[_start.._current];
+                        yield return Result.Value(
+                            TokenType.Identifier,
+                            start,
+                            end
+                        );
 
-        _tokens.Add(new Token(
-            type,
-            lexeme,
-            literal,
-            _startLine,
-            _startColumn
-        ));
-    }
+                        next = SkipTrivia(end);
+                        continue;
+                    }
+                    else // uknow
+                    {
+                        yield return Result.Empty<TokenType>(
+                            start,
+                            $"無法辨識的字元：'{next.Value}'"
+                        );
 
-    private void AddNewLine()
-    {
-        AddToken(TokenType.NL);
+                        yield break;
+                    }
 
-        _line++;
-        _column = 1;
-    }
+                    break;
+            }
 
-    private void SkipComment()
-    {
-        while (!IsAtEnd() &&
-               CheckCurrent() != '\n' &&
-               CheckCurrent() != '\r')
-        {
-            GetNext();
+            next = end.ConsumeChar();
         }
     }
 
-    private void ScanToken()
+    private static Result<char> SkipTrivia(TextSpan input)
     {
-        char c = GetNext();
+        var next = input.ConsumeChar();
 
-        switch (c)
+        while (next.HasValue)
         {
-            case '(':
-                AddToken(TokenType.LeftParen);
-                break;
+            // ignore white space or Tab
+            if (next.Value is ' ' or '\t')
+            {
+                next = next.Remainder.ConsumeChar();
+                continue;
+            }
 
-            case ')':
-                AddToken(TokenType.RightParen);
-                break;
+            // ignore # but catch the new line
+            if (next.Value == '#')
+            {
+                var remainder = next.Remainder;
 
-            case ',':
-                AddToken(TokenType.Comma);
-                break;
+                next = remainder.ConsumeChar();
 
-            case '\r':
-                // Windows use \r\n for new line
-                if (Match('\n'))
+                while (next.HasValue &&
+                       next.Value is not '\n' and not '\r')
                 {
-                    AddNewLine();
+                    next = next.Remainder.ConsumeChar();
                 }
-                break;
 
-            case '\n':
-                AddNewLine();
-                break;
+                continue;
+            }
 
-            case ' ':
-            case '\t':
-                // ignore space
-                break;
+            return next;
+        }
 
-            case '#':
-                SkipComment();
-                break;
+        return next;
+    }
 
-            case '"':
-                ScanString();
-                break;
+    private Result<TokenType> ScanString(TextSpan start)
+    {
+        TextSpan end = start;
+        while (true)
+        {
+            var c = end.ConsumeChar();
 
-            default:
-                if (char.IsDigit(c))
+            if (!c.HasValue)
+            {
+                return Result.Empty<TokenType>(
+                    start,
+                    "字串缺少結尾引號"
+                );
+            }
+
+            if (c.Value == '"')
+            {
+                end = c.Remainder;
+                break;
+            }
+
+            if (c.Value is '\r' or '\n')
+            {
+                return Result.Empty<TokenType>(
+                    c.Location,
+                    "字串不可直接跨行"
+                );
+            }
+
+            if (c.Value == '\\')
+            {
+                var escaped = c.Remainder.ConsumeChar();
+
+                if (!escaped.HasValue)
                 {
-                    ScanNumber();
-                }
-                else if (IsIdentifierStart(c))
-                {
-                    ScanIdentifier();
-                }
-                else
-                {
-                    throw CreateError(
-                        $"無法辨識的字元：'{c}'"
+                    return Result.Empty<TokenType>(
+                        c.Location,
+                        "字串結尾缺少跳脫字元"
                     );
                 }
 
-                break;
-        }
-    }
-
-    private void ScanString()
-    {
-        var builder = new System.Text.StringBuilder();
-
-        while (!IsAtEnd() && CheckCurrent() != '"')
-        {
-            char c = GetNext();
-
-            if (c == '\r' || c == '\n')
-            {
-                throw CreateError("字串不可直接跨行");
-            }
-
-            if (c == '\\')
-            {
-                if (IsAtEnd())
-                    throw CreateError("字串結尾缺少跳脫字元");
-
-                char escaped = GetNext();
-
-                c = escaped switch
+                if (escaped.Value is not ('"' or '\\' or 'n' or 'r' or 't'))
                 {
-                    '"' => '"',
-                    '\\' => '\\',
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    _ => throw CreateError(
-                        $"不支援的跳脫字元：\\{escaped}"
-                    )
-                };
+                    return Result.Empty<TokenType>(
+                        escaped.Location,
+                        $"unspport char: \\{escaped.Value}"
+                    );
+                }
+
+                end = escaped.Remainder;
             }
-
-            builder.Append(c);
+            else
+            {
+                end = c.Remainder;
+            }
         }
 
-        if (IsAtEnd())
-        {
-            throw CreateError("字串缺少結尾引號");
-        }
-
-        // 消耗結尾的 "
-        GetNext();
-
-        AddToken(
+        return Result.Value(
             TokenType.String,
-            builder.ToString()
+            start,
+            end
         );
     }
 
-    private void ScanNumber()
+    private (TextSpan End, bool IsFloat) ScanNumber(
+        TextSpan input)
     {
-        while (char.IsDigit(CheckCurrent()))
-        {
-            GetNext();
-        }
-
+        TextSpan end = input;
         bool is_float = false;
 
-        // 判斷是否為小數
-        if (CheckCurrent() == '.' &&
-            char.IsDigit(CheckNext()))
+        Result<char> current_char;
+
+        while (true)
         {
-            is_float = true;
+            current_char = end.ConsumeChar();
 
-            GetNext();
-
-            while (char.IsDigit(CheckCurrent()))
+            if (!current_char.HasValue)
             {
-                GetNext();
+                break;
+            }
+            if (!char.IsDigit(current_char.Value))
+            {
+                break;
+            }
+
+            end = current_char.Remainder;
+        }
+
+        current_char = end.ConsumeChar();
+
+        if (current_char.HasValue)
+        {
+            if (current_char.Value == '.')
+            {
+                is_float = true;
+
+                current_char = current_char.Remainder.ConsumeChar();
+
+                while (true)
+                {
+                    end = current_char.Remainder;
+                    current_char = end.ConsumeChar();
+
+                    if (!current_char.HasValue)
+                    {
+                        break;
+                    }
+                    if (!char.IsDigit(current_char.Value))
+                    {
+                        break;
+                    }
+                }
             }
         }
 
-        string lexeme = _source[_start.._current];
-
-        if (!double.TryParse(
-            lexeme,
-            NumberStyles.AllowDecimalPoint,
-            CultureInfo.InvariantCulture,
-            out double value))
-        {
-            throw CreateError($"無效的數字：{lexeme}");
-        }
-
-        if (is_float)
-        {
-            AddToken(TokenType.Float, value);
-        }
-        else
-        {
-            AddToken(TokenType.Integer, value);
-        }
-    }
-
-    private void ScanIdentifier()
-    {
-        while (IsIdentifierPart(CheckCurrent()))
-        {
-            GetNext();
-        }
-
-        AddToken(TokenType.Identifier);
+        return (end, is_float);
     }
 
     private static bool IsIdentifierStart(char c)
@@ -292,13 +271,6 @@ public sealed class Lexer
     private static bool IsIdentifierPart(char c)
     {
         return c == '_' || char.IsLetterOrDigit(c);
-    }
-
-    private Exception CreateError(string message)
-    {
-        return new InvalidOperationException(
-            $"Lexer Error at {_startLine}:{_startColumn} - {message}"
-        );
     }
 
 }

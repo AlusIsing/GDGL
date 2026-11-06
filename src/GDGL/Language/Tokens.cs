@@ -1,11 +1,16 @@
 namespace GDGL.Language;
 
+using Superpower.Display;
+
 public enum TokenType
 {
     Identifier,
     String,
     Integer,
     Float,
+    
+    [Token(Category = "operator", Example = "+")]
+    Plus,
 
     Colon, // :
     Comma, // ,
@@ -15,12 +20,3 @@ public enum TokenType
     NL, // new line
     EOF, // end of file
 }
-
-public record Token
-(
-    TokenType Type,
-    string Lexeme,
-    object? Literal,
-    int Line,
-    int Column
-);
