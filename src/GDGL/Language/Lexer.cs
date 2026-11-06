@@ -23,6 +23,8 @@ public sealed class Lexer : Tokenizer<TokenType>
 
             switch (next.Value)
             {
+                case ' ':
+                    break;
                 case '(':
                     yield return Result.Value(
                         TokenType.LeftParen,
@@ -272,5 +274,4 @@ public sealed class Lexer : Tokenizer<TokenType>
     {
         return c == '_' || char.IsLetterOrDigit(c);
     }
-
 }

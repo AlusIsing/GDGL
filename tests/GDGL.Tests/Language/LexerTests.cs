@@ -33,20 +33,29 @@ public class LexerTests
         TextSpan input = new TextSpan(source);
 
         Result<TokenType>[] tokens = lexer.ScanTokens(input).ToArray();
-        
+
         string tokens_str = "";
 
         foreach (Result<TokenType> token in tokens)
         {
-            string one_line_str = String.Format("{0}: {1} line {2} column {3}\n",
-                token.Value,
-                token.Value,
-                token.Value,
-                token.Value
-            );
+            string one_line_str = "";
+
+            try
+            {
+                one_line_str = String.Format("{0}: {1} line {2} column {3}\n",
+                    token.Value,
+                    token.Location.Until(token.Remainder),
+                    token.Location.Position.Line,
+                    token.Location.Position.Column
+                );
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLine($"error: {e.Message}");
+            }
 
             tokens_str = tokens_str + one_line_str;
-            
+
             Logger.WriteLine(one_line_str);
         }
 
@@ -57,8 +66,7 @@ public class LexerTests
             + "Identifier: b line 1 column 9\n"
             + "Comma: , line 1 column 10\n"
             + "Identifier: c line 1 column 12\n"
-            + "RightParen: ) line 1 column 13\n"
-            + "EOF:  line 1 column 14\n";
+            + "RightParen: ) line 1 column 13\n";
 
         Assert.Equal(ans, tokens_str);
     }
