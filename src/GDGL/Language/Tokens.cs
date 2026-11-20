@@ -11,11 +11,15 @@ public enum TokenType
     
     [Token(Category = "operator", Example = "+")]
     Plus,
+    Minus,
+    Multiply,
+    Divide,
 
     Colon, // :
     Comma, // ,
     LeftParen, // (
     RightParen, // )
+    Equal, // =
     
     NL, // new line
     EOF, // end of file
