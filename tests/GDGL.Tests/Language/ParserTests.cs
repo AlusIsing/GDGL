@@ -35,7 +35,7 @@ public class ParserTests
         
         TokenList<TokenType> token_list = tokenizer.Tokenize(input);
 
-        ASTNode ast = Parser.Script(token_list).Value;
+        ASTNode ast = Parser.Parse(token_list).Value;
 
         foreach (Token<TokenType> token in token_list)
         {

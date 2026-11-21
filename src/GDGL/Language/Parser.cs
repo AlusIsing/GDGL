@@ -32,14 +32,14 @@ public static class Parser
     // 括號或數字
     static readonly TokenListParser<TokenType, ASTNode> Factor =
         (from left in Token.EqualTo(TokenType.LeftParen)
-         from expr in Parse.Ref(() => Expr)
+         from expr in Superpower.Parse.Ref(() => Expr)
          from right in Token.EqualTo(TokenType.RightParen)
          select expr)
         .Or(IntegerNumber);
 
     // 乘除
     static readonly TokenListParser<TokenType, ASTNode> Term =
-        Parse.Chain(
+        Superpower.Parse.Chain(
             Multiply.Or(Divide),
             Factor,
             (op, left, right) => new BinaryNode(left, op, right)
@@ -47,13 +47,13 @@ public static class Parser
 
     // 加減
     static readonly TokenListParser<TokenType, ASTNode> Expr =
-        Parse.Chain(
+        Superpower.Parse.Chain(
             Add.Or(Subtract),
             Term,
             (op, left, right) => new BinaryNode(left, op, right)
         );
 
     // 完整解析器
-    public static readonly TokenListParser<TokenType, ASTNode> Script =
+    public static readonly TokenListParser<TokenType, ASTNode> Parse =
         Expr.AtEnd();
 }
