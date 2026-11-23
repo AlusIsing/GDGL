@@ -53,7 +53,11 @@ public static class Parser
             (op, left, right) => new BinaryNode(left, op, right)
         );
 
+    static readonly TokenListParser<TokenType, ASTNode> Stmts =
+        Expr.AtLeastOnceDelimitedBy(Token.EqualTo(TokenType.NL))
+            .Select(statements => (ASTNode)new StmtsNode(statements));
+
     // 完整解析器
     public static readonly TokenListParser<TokenType, ASTNode> Parse =
-        Expr.AtEnd();
+        Stmts.AtEnd();
 }

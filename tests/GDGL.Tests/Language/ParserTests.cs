@@ -39,12 +39,28 @@ public class ParserTests
 
         foreach (Token<TokenType> token in token_list)
         {
-            Console.WriteLine(
+            Logger.WriteLine(
                 $"Kind: {token.Kind,-12} Token: {token}"
             );
         }
+    }
 
-        Logger.WriteLine("\n========== RESULT ==========");
-        Logger.WriteLine(ast.Evaluate().ToString());
+    [Fact]
+    public void MultipleLineExpressionTest()
+    {
+        string input = "1 + 1\n1 + 1";
+
+        Tokenizer<TokenType> tokenizer = Lexer.Build();
+        
+        TokenList<TokenType> token_list = tokenizer.Tokenize(input);
+
+        ASTNode ast = Parser.Parse(token_list).Value;
+
+        foreach (Token<TokenType> token in token_list)
+        {
+            Logger.WriteLine(
+                $"Kind: {token.Kind,-12} Token: {token}"
+            );
+        }
     }
 }
