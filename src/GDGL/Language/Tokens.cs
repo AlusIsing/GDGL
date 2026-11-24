@@ -4,6 +4,14 @@ using Superpower.Display;
 
 public enum TokenType
 {
+    // reserved words
+    CHARACTER,
+    IMAGE,
+    SET,
+    SAY,
+    SHOW,
+    HIDE,
+
     Identifier,
     String,
     Integer,

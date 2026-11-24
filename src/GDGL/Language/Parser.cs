@@ -8,8 +8,10 @@ using Superpower.Parsers;
 
 using GDGL.Language.AST;
 
+using GDGL.Runtime;
 
-public static class Parser
+
+public class Parser
 {
     static readonly TokenListParser<TokenType, ArithmeticOperator> Add =
         Token.EqualTo(TokenType.Plus).Value(ArithmeticOperator.Add);
@@ -32,7 +34,7 @@ public static class Parser
     // 括號或數字
     static readonly TokenListParser<TokenType, ASTNode> Factor =
         (from left in Token.EqualTo(TokenType.LeftParen)
-         from expr in Superpower.Parse.Ref(() => Expr)
+         from expr in Superpower.Parse.Ref(() => Expr!)
          from right in Token.EqualTo(TokenType.RightParen)
          select expr)
         .Or(IntegerNumber);

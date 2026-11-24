@@ -66,3 +66,8 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+
+# ==========================================
+# AI agent command file ignore
+# ==========================================
+command.md
