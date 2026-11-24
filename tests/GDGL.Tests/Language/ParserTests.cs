@@ -20,6 +20,8 @@ using Xunit.Abstractions;
 public class ParserTests
 {
     private readonly ITestOutputHelper Logger;
+    
+    private Parser parser = new Parser();
 
     public ParserTests(ITestOutputHelper output)
     {
@@ -35,7 +37,7 @@ public class ParserTests
         
         TokenList<TokenType> token_list = tokenizer.Tokenize(input);
 
-        ASTNode ast = Parser.Parse(token_list).Value;
+        ASTNode ast = parser.Parse(token_list).Value;
 
         foreach (Token<TokenType> token in token_list)
         {
@@ -54,7 +56,7 @@ public class ParserTests
         
         TokenList<TokenType> token_list = tokenizer.Tokenize(input);
 
-        ASTNode ast = Parser.Parse(token_list).Value;
+        ASTNode ast = parser.Parse(token_list).Value;
 
         foreach (Token<TokenType> token in token_list)
         {
